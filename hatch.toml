@@ -1,0 +1,43 @@
+[envs.default]
+dependencies = [
+  "coverage[toml]",
+  "pytest",
+  "pysatl"
+]
+[envs.default.scripts]
+test = "pytest {args:test}"
+test-cov = "coverage run -m pytest {args:test}"
+cov-report = [
+  "- coverage combine",
+  "coverage report --show-missing",
+]
+cov = [
+  "test-cov",
+  "cov-report",
+]
+
+[[envs.all.matrix]]
+python = ["3.11"]
+
+[envs.lint]
+detached = true
+dependencies = [
+  "black>=22.10.0",
+  "mypy>=0.991",
+  "ruff>=0.0.166",
+]
+[envs.lint.scripts]
+typing = "mypy --install-types --non-interactive {args: sha3bit }"
+style = [
+  "ruff {args:.}",
+  "black --check --diff {args:.}",
+]
+fmt = [
+  "black {args:.}",
+  "ruff --fix {args:.}",
+  "style",
+]
+all = [
+  "style",
+  "typing",
+]
