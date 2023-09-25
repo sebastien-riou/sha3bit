@@ -29,6 +29,7 @@ classifiers = [
 ]
 dependencies = [
   "pysatl>=1.2.6",
+  "bitarray"
 ]
 [project.urls]
 "Homepage" = "https://github.com/sebastien-riou/sha3bit"
