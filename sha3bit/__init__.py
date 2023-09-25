@@ -256,9 +256,9 @@ class Keccak:
 
             # χ
             for y in range(5):
-                t = [lanes[x][y] for x in range(5)]
+                s = [lanes[x][y] for x in range(5)]
                 for x in range(5):
-                    lanes[x][y] = t[x] ^ ((~t[(x + 1) % 5]) & t[(x + 2) % 5])
+                    lanes[x][y] = s[x] ^ ((~s[(x + 1) % 5]) & s[(x + 2) % 5])
             if verbose:
                 logging.debug('state after round %d χ:\n%s' % (_round, Keccak._state_str(lanes)))
 
