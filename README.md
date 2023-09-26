@@ -56,9 +56,12 @@ Tests can run without creating/installing the package:
 you can also run each test separately:
 
     python3 -m test.test_api
+    python3 -m test.test_api_xof_absorb
     python3 -m test.test_cavp
+    python3 -m test.test_cavp_xof
     python3 -m test.test_hardcoded
-    python3 -m test.test_vs_hashlib
+    python3 -m test.test_sha3_vs_hashlib
+    python3 -m test.test_shake_vs_hashlib
 
 ## Generate the doc
 
