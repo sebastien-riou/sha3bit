@@ -48,7 +48,7 @@ jobs:
     - name: Run tests
       run: hatch run cov
 
-    - if: matrix.python-version == '3.11' && runner.os == 'Linux'
+    - if: matrix.python-version == '3.9' && runner.os == 'Linux'
       name: Doc
       run: |
         cd docs
