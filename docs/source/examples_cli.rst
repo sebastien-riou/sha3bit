@@ -5,6 +5,7 @@ CLI examples
 Display help
 ============
 
+
 ..  code-block:: shell
     
     $ python3 -m sha3bit.cli --help
@@ -33,6 +34,7 @@ Display help
 
 SHA3-256 of hex string
 ======================
+
 This compute the SHA3-256 of the message "abc" (which is '61 62 63' in ASCII)
 
 ..  code-block:: shell
@@ -42,6 +44,7 @@ This compute the SHA3-256 of the message "abc" (which is '61 62 63' in ASCII)
 
 
 You can also separate the bytes:
+
 ..  code-block:: shell
     
     $ python3 -m sha3bit.cli --sha3-256 '61 62 63'
@@ -49,6 +52,7 @@ You can also separate the bytes:
 
 
 Commas are supported:
+
 ..  code-block:: shell
     
     $ python3 -m sha3bit.cli --sha3-256 '0x61, 0x62, 0x63'
@@ -59,6 +63,7 @@ Bit length capability
 =====================
 
 SHA3-256 of single bit message '0':
+
 ..  code-block:: shell
     
     $ python3 -m sha3bit.cli --sha3-256 '00' --bit-length=1
@@ -66,6 +71,7 @@ SHA3-256 of single bit message '0':
 
 
 SHA3-256 of single bit message '1':
+
 ..  code-block:: shell
     
     $ python3 -m sha3bit.cli --sha3-256 '01' --bit-length=1
@@ -73,6 +79,7 @@ SHA3-256 of single bit message '1':
 
 
 SHA3-256 of two bits message '10':
+
 ..  code-block:: shell
     
     $ python3 -m sha3bit.cli --sha3-256 '01' --bit-length=2
@@ -80,6 +87,7 @@ SHA3-256 of two bits message '10':
 
 
 SHA3-256 of two bits message '01':
+
 ..  code-block:: shell
     
     $ python3 -m sha3bit.cli --sha3-256 '02' --bit-length=2
@@ -88,11 +96,13 @@ SHA3-256 of two bits message '01':
 
 Dumping intermediate values
 ============================
+
 This is useful to people working on their own implemention of SHA3.
 The verbosity is controlled by the logging level. 
 
 - Use 'INFO' to dump block level information
 - Use 'DEBUG' to dump all intermediate values
+
 
 ..  code-block:: shell
     
