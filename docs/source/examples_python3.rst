@@ -64,7 +64,7 @@ Import / export
 
 Dumping intermediate values
 ============================
-This is useful to people working on their own implemention of SHA256.
+This is useful to people working on their own implemention of SHA3.
 The verbosity is controlled by the logging level. 
 
 - Use 'INFO' to dump block level information
