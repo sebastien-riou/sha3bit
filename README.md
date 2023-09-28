@@ -19,8 +19,88 @@ Pure python implementation of SHA3 with features which are often lacking:
 
     python3 -m pip install sha3bit
 
-## Usage
+## CLI usage
 
+### Get help
+
+````
+python3 -m sha3bit.cli --help
+usage: cli.py [-h] [--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}] [--bit-length BIT_LENGTH] (--sha3-224 | --sha3-256 | --sha3-384 | --sha3-512 | --shake-128 | --shake-256) [--digest-size DIGEST_SIZE]
+            message
+
+sha3bit.cli
+
+positional arguments:
+message               Message to hash
+
+optional arguments:
+-h, --help            show this help message and exit
+--log-level {DEBUG,INFO,WARNING,ERROR,CRITICAL}
+--bit-length BIT_LENGTH
+                        Bit length of message
+--sha3-224            Use SHA3-224 algorythm
+--sha3-256            Use SHA3-256 algorythm
+--sha3-384            Use SHA3-384 algorythm
+--sha3-512            Use SHA3-512 algorythm
+--shake-128           Use SHAKE-128 algorythm
+--shake-256           Use SHAKE-256 algorythm
+--digest-size DIGEST_SIZE
+                        Output size in bytes
+````
+
+### SHA3-256 of hex string
+This compute the SHA3-256 of the message "abc" (which is '61 62 63' in ASCII)
+
+````
+python3 -m sha3bit.cli --sha3-256 616263
+3A 98 5D A7 4F E2 25 B2 04 5C 17 2D 6B D3 90 BD 85 5F 08 6E 3E 9D 52 5B 46 BF E2 45 11 43 15 32
+````
+
+You can also separate the bytes:
+````
+python3 -m sha3bit.cli --sha3-256 '61 62 63'
+3A 98 5D A7 4F E2 25 B2 04 5C 17 2D 6B D3 90 BD 85 5F 08 6E 3E 9D 52 5B 46 BF E2 45 11 43 15 32
+````
+
+Commas are supported:
+````
+python3 -m sha3bit.cli --sha3-256 '0x61, 0x62, 0x63'
+3A 98 5D A7 4F E2 25 B2 04 5C 17 2D 6B D3 90 BD 85 5F 08 6E 3E 9D 52 5B 46 BF E2 45 11 43 15 32
+````
+
+### Showing internal steps
+You can control the verbosity of the output using the `--log-level` argument.
+- `--log-level=INFO` will display inputs/outputs of the compression function.
+- `--log-level=DEBUG` will display all internal steps of the compression function.
+
+````
+python3 -m sha3bit.cli --sha3-256 616263 --log-level=INFO
+process block:
+            0                         1                         2                         3                         4              
+0   61 62 63 06 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   
+1   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 80   
+2   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   
+3   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   
+4   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   
+f1600 input:
+            0                         1                         2                         3                         4              
+0   61 62 63 06 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   
+1   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 80   00 00 00 00 00 00 00 00   
+2   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   
+3   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   
+4   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00   
+f1600 output:
+            0                         1                         2                         3                         4              
+0   3A 98 5D A7 4F E2 25 B2   27 3E 60 D6 AA C8 97 20   42 F7 4E A5 81 05 13 BF   EF 21 46 A8 DC 39 12 63   C8 BE 38 B9 5C 3E C5 5F   
+1   04 5C 17 2D 6B D3 90 BD   F7 B1 3F 62 61 C5 F2 31   BF F8 A9 CD CE FC 92 30   BD E1 5F 39 66 78 3F 4B   C1 3C BC AC DC 22 FC 02   
+2   85 5F 08 6E 3E 9D 52 5B   9C DF 04 F2 F3 74 DF 8F   62 08 F0 4A 2A 8B 8B 1A   8A 7D C6 FF 1B F9 BE 30   C3 6C 4B 8C 92 94 80 66   
+3   46 BF E2 45 11 43 15 32   AC C4 86 B1 8D 83 5E 9F   05 A7 0C D9 90 CC C4 60   C9 06 DD D6 3D 51 72 D2   7D 1A 16 AE 29 51 C2 D5   
+4   D1 36 F6 22 FB 92 10 F8   A2 BA 11 BC 04 1C 0A A8   4E 1E 85 54 32 79 24 1F   85 B5 EC 0A 60 AF A3 25   41 10 E9 96 9E 9C D8 B5   
+-----------------------------------------------------------------------------------------------------------------------------------
+digest: 3A 98 5D A7 4F E2 25 B2 04 5C 17 2D 6B D3 90 BD 85 5F 08 6E 3E 9D 52 5B 46 BF E2 45 11 43 15 32
+````
+
+## Python3 usage
 ### One liner 
 
     >>> from sha3bit import sha3_256
