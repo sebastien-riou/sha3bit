@@ -19,6 +19,7 @@ Other online resources:
   :maxdepth: 4
 
   installation
+  examples_cli
   examples_python3
   api
 
