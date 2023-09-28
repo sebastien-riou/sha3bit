@@ -68,7 +68,33 @@ python3 -m sha3bit.cli --sha3-256 '0x61, 0x62, 0x63'
 3A 98 5D A7 4F E2 25 B2 04 5C 17 2D 6B D3 90 BD 85 5F 08 6E 3E 9D 52 5B 46 BF E2 45 11 43 15 32
 ````
 
-### Showing internal steps
+### Bit length capability
+
+SHA3-256 of single bit message '0':
+````
+python3 -m sha3bit.cli --sha3-256 '00' --bit-length=1
+1B 2E 61 92 35 78 E3 5F 3B 46 29 E0 4A 0F F3 B7 3D AA 57 1A E0 11 30 D9 C1 6E F7 DA 7A 4C FD C2
+````
+
+SHA3-256 of single bit message '1':
+````
+python3 -m sha3bit.cli --sha3-256 '01' --bit-length=1
+83 F6 62 16 D2 CC 76 9E 15 3B AF CE 01 81 B6 1A 47 1B 4C 6A 21 3F C6 F5 9A 42 98 5F 97 6F 33 FE    
+````
+
+SHA3-256 of two bits message '10':
+````
+python3 -m sha3bit.cli --sha3-256 '01' --bit-length=2
+35 89 C9 5B A0 B3 CF C5 DE 7C 86 88 41 3F DA 5A 2D 5A 55 BB B1 06 90 04 69 F6 C5 E4 17 0E C9 59
+````
+
+SHA3-256 of two bits message '01':
+````
+python3 -m sha3bit.cli --sha3-256 '02' --bit-length=2
+48 59 15 F6 3F CF 56 7B 8C 3D FA FE F3 68 D1 90 AE DB 8A 60 F5 52 2B E7 7F 2D AA B8 3B 75 7C 35
+````
+
+### Dumping intermediate values
 You can control the verbosity of the output using the `--log-level` argument.
 - `--log-level=INFO` will display inputs/outputs of the compression function.
 - `--log-level=DEBUG` will display all internal steps of the compression function.
