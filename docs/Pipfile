@@ -1,8 +1,3 @@
-[[source]]
-url = "http://gitlab.tiempo-secure.com/api/v4/projects/80/packages/pypi/simple"
-verify_ssl = false
-name = "pip_conf_index_global"
-
 [packages]
 sphinx = "*"
 
