@@ -1,14 +1,10 @@
 import binascii
 import copy
 import logging
-import sys
-
-try:
-    from pysatl import Utils
-except ImportError:
-    pass  # we just don't support logging
 
 from bitarray import bitarray
+
+from sha3bit.utils import hexstr
 
 
 class BitFiFo:
@@ -42,7 +38,7 @@ class BitFiFo:
         bitlen = len(data)
         overflow = bitlen - self.remaining_capacity()
         if overflow > 0:
-            raise BufferError('Data to big to fit in the buffer by %d bits' % overflow)
+            raise BufferError(f'Data to big to fit in the buffer by {overflow} bits')
         self.buf += data
 
     def push_bytes(self, data, bitlen=None):
@@ -64,7 +60,7 @@ class BitFiFo:
     def pop(self, bitlen):
         underflow = bitlen - len(self.buf)
         if underflow > 0:
-            raise BufferError('Not enough data in the buffer, underflow by %d bits' % underflow)
+            raise BufferError(f'Not enough data in the buffer, underflow by {underflow} bits')
         out = self.buf[0:bitlen]
         b = bitarray(endian='little')
         b += self.buf[bitlen:]
@@ -85,7 +81,7 @@ class Keccak:
         This implement only the variant describe in SHA3 standard.
         """
         if (capacity % 8) != 0:
-            raise ValueError('capacity is not a multiple of 8: %d' % capacity)
+            raise ValueError(f'capacity is not a multiple of 8: {capacity}')
         if capacity > 1600:
             raise ValueError('capacity > 1600')
         self.suffix = suffix
@@ -106,13 +102,13 @@ class Keccak:
         verbose = state['verbose']
         if verbose:
             logging.info('importing state:')
-            logging.info('  capacity = %d' % state['capacity'])
+            logging.info('  capacity = %d', state['capacity'])
             logging.info('  state:  ' + Keccak._state_str(state['state']))
             if state['finalized']:
                 logging.info('  finalized')
             else:
-                logging.info('  cache:  ' + Utils.hexstr(state['cache']))
-                logging.info('  bitlen = %d' % state['bitlen'])
+                logging.info('  cache:  ' + hexstr(state['cache']))
+                logging.info('  bitlen = %d', state['bitlen'])
         out = Keccak(capacity, suffix, verbose=verbose)
         out.state = state['state']
         out.finalized = finalized
@@ -137,13 +133,13 @@ class Keccak:
             state['bitlen'] = self.buf.level()
         if self._verbose:
             logging.info('exporting current state:')
-            logging.info('  capacity = %d' % state['capacity'])
+            logging.info('  capacity = %d', state['capacity'])
             logging.info('  state:  ' + Keccak._state_str(self.state))
-            logging.info('  cache:  ' + Utils.hexstr(state['cache']))
-            if state['finalized'] is None:
+            logging.info('  cache:  ' + hexstr(state['cache']))
+            if state['finalized']:
                 logging.info('  finalized')
             else:
-                logging.info('  bitlen = %d' % state['bitlen'])
+                logging.info('  bitlen = %d', state['bitlen'])
         return state
 
     def _process_block(self, block):
@@ -230,7 +226,7 @@ class Keccak:
         return ((a >> (64 - (n % 64))) + (a << (n % 64))) % (1 << 64)
 
     @staticmethod
-    def f1600(lanes, *, verbose: bool = False) -> None:
+    def f1600(lanes, *, verbose: bool = False) -> list[list[int]]:
         """SHA3 f function. lanes must be a list of 5 list of 5 int."""
         if verbose:
             logging.info('f1600 input:\n' + Keccak._state_str(lanes))
@@ -241,18 +237,18 @@ class Keccak:
             d = [c[(x + 4) % 5] ^ Keccak._rol64(c[(x + 1) % 5], 1) for x in range(5)]
             lanes = [[lanes[x][y] ^ d[x] for y in range(5)] for x in range(5)]
             if verbose:
-                logging.debug('new round\nc:  %s' % (Keccak._lane_list_str(c)))
-                logging.debug('d:  %s' % (Keccak._lane_list_str(d)))
-                logging.debug('state after round %d θ:\n%s' % (_round, Keccak._state_str(lanes)))
+                logging.debug('new round\nc:  %s', Keccak._lane_list_str(c))
+                logging.debug('d:  %s', Keccak._lane_list_str(d))
+                logging.debug('state after round %d θ:\n%s', _round, Keccak._state_str(lanes))
 
             # p and π
-            (x, y) = (1, 0)
+            x, y = (1, 0)
             current = lanes[x][y]
             for t in range(24):
-                (x, y) = (y, (2 * x + 3 * y) % 5)
-                (current, lanes[x][y]) = (lanes[x][y], Keccak._rol64(current, (t + 1) * (t + 2) // 2))
+                x, y = (y, (2 * x + 3 * y) % 5)
+                current, lanes[x][y] = (lanes[x][y], Keccak._rol64(current, (t + 1) * (t + 2) // 2))
             if verbose:
-                logging.debug('state after round %d p and π:\n%s' % (_round, Keccak._state_str(lanes)))
+                logging.debug('state after round %d p and π:\n%s', _round, Keccak._state_str(lanes))
 
             # χ
             for y in range(5):
@@ -260,36 +256,36 @@ class Keccak:
                 for x in range(5):
                     lanes[x][y] = s[x] ^ ((~s[(x + 1) % 5]) & s[(x + 2) % 5])
             if verbose:
-                logging.debug('state after round %d χ:\n%s' % (_round, Keccak._state_str(lanes)))
+                logging.debug('state after round %d χ:\n%s', _round, Keccak._state_str(lanes))
 
             # i
             if verbose:
-                logging.debug('lanes[0][0]=%s' % (Keccak._lane_str(lanes[0][0])))
+                logging.debug('lanes[0][0]=%s', Keccak._lane_str(lanes[0][0]))
             for j in range(7):
                 r = ((r << 1) ^ ((r >> 7) * 0x71)) % 256
                 if verbose:
-                    logging.debug('j=%d, r=%d' % (j, r))
+                    logging.debug('j=%d, r=%d', j, r)
                 if r & 2:
                     lanes[0][0] = lanes[0][0] ^ (1 << ((1 << j) - 1))
                     if verbose:
-                        logging.debug('lanes[0][0]=%s' % (Keccak._lane_str(lanes[0][0])))
+                        logging.debug('lanes[0][0]=%s', Keccak._lane_str(lanes[0][0]))
 
             if verbose:
                 if _round == 23:
-                    logging.info('f1600 output:\n{}\n{}'.format(Keccak._state_str(lanes), '-' * 131))
+                    logging.info('f1600 output:\n%s\n%s', Keccak._state_str(lanes), '-' * 131)
                 else:
-                    logging.debug('state after round %d completion\n%s' % (_round, Keccak._state_str(lanes)))
+                    logging.debug('state after round %d completion\n%s', _round, Keccak._state_str(lanes))
         return lanes
 
     @staticmethod
     def _lane_str(lane):
-        return Utils.hexstr(Utils.int_to_ba(lane, width=8))
+        return hexstr(lane.to_bytes(8, 'little'))
 
     @staticmethod
     def _lane_list_str(lanes, lane_sep='   '):
         out = ''
         for lane in lanes:
-            out += Utils.hexstr(Utils.int_to_ba(lane, width=8)) + lane_sep
+            out += hexstr(lane.to_bytes(8, 'little')) + lane_sep
         return out
 
     @staticmethod
@@ -299,9 +295,9 @@ class Keccak:
         lane_sep = '   '
         out = ' ' + lane_sep
         for x in range(5):
-            out += '{num:^{fill}{width}}'.format(num=x, fill=' ', width=lane_char_width) + lane_sep
+            out += f'{x:^ {lane_char_width}}' + lane_sep
         for x in range(5):
-            out += '\n%d' % x
+            out += f'\n{x}'
             out += lane_sep
             for y in range(5):
                 if x + 5 * y < limit:
@@ -317,11 +313,10 @@ class shake_128:
         """SHAKE implementation supporting bit granularity for message input length.
         API is the same as hashlib + export_state / import_state.
         """
-        v = verbose and 'pysatl' in sys.modules
         capacity = self.seclevel * 2
         self.digest_size = self.seclevel // 8
         self.block_size = (1600 - capacity) // 8
-        self._h = Keccak(capacity=capacity, suffix=self._suffix, verbose=v)
+        self._h = Keccak(capacity=capacity, suffix=self._suffix, verbose=verbose)
         self.update(m, bitlen=bitlen)
 
     def export_state(self):
@@ -386,7 +381,7 @@ class sha3_224:
         capacity = self.seclevel * 2
         self.digest_size = self.seclevel // 8
         self.block_size = (1600 - capacity) // 8
-        self._verbose = verbose and 'pysatl' in sys.modules
+        self._verbose = verbose
         self._h = Keccak(capacity=capacity, suffix=self._suffix, verbose=self._verbose)
         self._digest = None
         self.update(m, bitlen=bitlen)
@@ -405,7 +400,7 @@ class sha3_224:
             out['verbose'] = self._verbose
             if self._verbose:
                 logging.info('exporting finalized digest:')
-                logging.info('  digest:  ' + Utils.hexstr(digest))
+                logging.info('  digest:  ' + hexstr(digest))
         return out
 
     @classmethod
@@ -418,7 +413,7 @@ class sha3_224:
             o._h = None
             if o._verbose:
                 logging.info('importing finalized digest:')
-                logging.info('  digest:  ' + Utils.hexstr(o._digest))
+                logging.info('  digest:  ' + hexstr(o._digest))
         else:
             o._h = Keccak.import_state(state)
         return o
@@ -439,7 +434,7 @@ class sha3_224:
 
         self._digest = self._h.squeez(self.digest_size)
         if self._verbose:
-            logging.info('digest: ' + Utils.hexstr(self._digest))
+            logging.info('digest: ' + hexstr(self._digest))
 
         self._h = None
 
@@ -469,7 +464,7 @@ def shake(seclevel):
         return shake_128
     if 256 == seclevel:
         return shake_256
-    raise ValueError('seclevel=%d, it must be in [128, 256]' % seclevel)
+    raise ValueError(f'seclevel={seclevel}, it must be in [128, 256]')
 
 
 def sha3(seclevel):
@@ -481,4 +476,4 @@ def sha3(seclevel):
         return sha3_384
     if 512 == seclevel:
         return sha3_512
-    raise ValueError('seclevel=%d, it must be in [244, 256, 384, 512]' % seclevel)
+    raise ValueError(f'seclevel={seclevel}, it must be in [224, 256, 384, 512]')

@@ -186,7 +186,7 @@ you can also run each test separately:
 ## Build the package
 Build is done using `hatchling`. The script `build` allows to build for different version of python3:
 
-    ./build python3.9
+    ./build python3.12
 
 
 ## Create a new version

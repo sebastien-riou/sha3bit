@@ -4,10 +4,10 @@ import re
 from pathlib import Path
 
 from bitarray import bitarray
-from pysatl import Utils
 
 import sha3bit
 from sha3bit import sha3_256, shake_128
+from sha3bit.utils import ba, hexstr
 
 
 def block_generator(seed, msg_bitlen, block_size=136):
@@ -49,7 +49,7 @@ def check_against_hashlib(n_seeds=3, max_length=1024 * 4):
         expected = hashlib.sha3_256()
         dut = sha3_256()
         for block in block_generator(seed, msg_bitlen, block_size=dut.block_size):
-            # print(Utils.hexstr(block))
+            # print(hexstr(block))
             expected.update(block)
             dut.update(block)
         assert expected.digest() == dut.digest()
@@ -57,7 +57,7 @@ def check_against_hashlib(n_seeds=3, max_length=1024 * 4):
     for seed_byte in range(0, n_seeds):
         for msg_bitlen in range(0, max_length, 8):
             seed = bytearray([seed_byte])
-            logging.info('\ntest msg_bitlen: %d' % msg_bitlen)
+            logging.info('\ntest msg_bitlen: %d', msg_bitlen)
             check_against_hashlib(seed, msg_bitlen)
             logging.info('\n')
 
@@ -81,7 +81,7 @@ def check_xof_against_hashlib(n_seeds=3, max_length=1024 * 4):
         expected = hashlib.shake_128()
         dut = shake_128()
         for block in block_generator(seed, msg_bitlen, block_size=dut.block_size):
-            # print(Utils.hexstr(block))
+            # print(hexstr(block))
             expected.update(block)
             dut.update(block)
         assert expected.digest(output_size) == dut.digest(output_size)
@@ -90,7 +90,7 @@ def check_xof_against_hashlib(n_seeds=3, max_length=1024 * 4):
         output_size = 17 + seed_byte
         for msg_bitlen in range(0, max_length, 8):
             seed = bytearray([seed_byte])
-            logging.info('\ntest msg_bitlen: %d, output_size: %d' % (msg_bitlen, output_size))
+            logging.info('\ntest msg_bitlen: %d, output_size: %d', msg_bitlen, output_size)
             check_against_hashlib(seed, msg_bitlen, output_size)
             logging.info('\n')
 
@@ -99,8 +99,8 @@ def check(msg, bitlen, sig, *, seclevel=256):
     m = sha3bit.sha3(seclevel)()
     if isinstance(msg, str):
         msg = msg.encode('ascii')
-    descr = 'msg      = ' + Utils.hexstr(msg) + '\n'
-    descr += 'bitlen   = %d\n' % bitlen
+    descr = 'msg      = ' + hexstr(msg) + '\n'
+    descr += f'bitlen   = {bitlen}\n'
     descr += 'expected = ' + sig + '\n'
     try:
         m.update(msg, bitlen=bitlen)
@@ -118,8 +118,8 @@ def check_xof(msg, bitlen, sig, *, seclevel=256):
     m = sha3bit.shake(seclevel)()
     if isinstance(msg, str):
         msg = msg.encode('ascii')
-    descr = 'msg      = ' + Utils.hexstr(msg) + '\n'
-    descr += 'bitlen   = %d\n' % bitlen
+    descr = 'msg      = ' + hexstr(msg) + '\n'
+    descr += f'bitlen   = {bitlen}\n'
     descr += 'expected = ' + sig + '\n'
     try:
         m.update(msg, bitlen=bitlen)
@@ -158,15 +158,15 @@ def check_against_nist_cavp():
     # (https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/sha3/sha-3bittestvectors.zip)
     resource_path = Path(__file__).parent
     for seclevel in [224, 256, 384, 512]:
-        print('seclevel = %d' % seclevel)
-        for tv_file in ['SHA3_%dShortMsg.rsp' % seclevel, 'SHA3_%dLongMsg.rsp' % seclevel]:
+        print(f'seclevel = {seclevel}')
+        for tv_file in [f'SHA3_{seclevel}ShortMsg.rsp', f'SHA3_{seclevel}LongMsg.rsp']:
             tv_path = resource_path.joinpath(tv_file)
             with open(tv_path) as f:
                 for line in f:
                     if line.startswith('Len'):
                         bitlen = int(re.search(r'Len = (.+)', line).group(1))
                     if line.startswith('Msg'):
-                        msg = Utils.ba(re.search(r'Msg = (.+)', line).group(1))
+                        msg = ba(re.search(r'Msg = (.+)', line).group(1))
                         if bitlen == 0:
                             msg = bytes(0)
                     if line.startswith('MD'):
@@ -179,15 +179,15 @@ def check_xof_against_nist_cavp():
     # (https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/sha3/shakebittestvectors.zip)
     resource_path = Path(__file__).parent
     for seclevel in [128, 256]:
-        print('seclevel = %d' % seclevel)
-        for tv_file in ['SHAKE%dShortMsg.rsp' % seclevel, 'SHAKE%dLongMsg.rsp' % seclevel]:
+        print(f'seclevel = {seclevel}')
+        for tv_file in [f'SHAKE{seclevel}ShortMsg.rsp', f'SHAKE{seclevel}LongMsg.rsp']:
             tv_path = resource_path.joinpath(tv_file)
             with open(tv_path) as f:
                 for line in f:
                     if line.startswith('Len'):
                         bitlen = int(re.search(r'Len = (.+)', line).group(1))
                     if line.startswith('Msg'):
-                        msg = Utils.ba(re.search(r'Msg = (.+)', line).group(1))
+                        msg = ba(re.search(r'Msg = (.+)', line).group(1))
                         if bitlen == 0:
                             msg = bytes(0)
                     if line.startswith('Output'):
@@ -199,8 +199,8 @@ def check_api():
     print('check API')
     msg = msg_generator(bytes(0), 300 * 8)
     expected = hashlib.sha3_256(msg).digest()
-    # print(Utils.hexstr(msg))
-    # print(Utils.hexstr(expected))
+    # print(hexstr(msg))
+    # print(hexstr(expected))
     assert expected == sha3_256(msg).digest()
     for len1 in range(0, len(msg) * 8):
         dut1 = sha3_256()
@@ -226,6 +226,12 @@ def check_api():
     state = dut.export_state()
     dut2 = sha3_256.import_state(state)
     assert dut2.hexdigest() == '1b2e61923578e35f3b4629e04a0ff3b73daa571ae01130d9c16ef7da7a4cfdc2'
+    try:
+        sha3bit.sha3(1)
+    except ValueError as e:
+        assert str(e) == 'seclevel=1, it must be in [224, 256, 384, 512]'
+    else:
+        raise AssertionError('sha3(1) should fail')
 
 
 def check_api_xof():
@@ -245,6 +251,13 @@ def check_api_xof():
             assert r1 == expected1
             r2 = dut.squeez(len(expected2))
             assert r2 == expected2
+
+    # export/import after squeez, with verbose enabled
+    expected = hashlib.shake_128(b'abc').digest(20)
+    dut = shake_128(b'abc', verbose=True)
+    assert dut.squeez(10) == expected[0:10]
+    dut2 = shake_128.import_state(dut.export_state())
+    assert dut2.squeez(10) == expected[10:]
 
 
 def check_api_xof_absorb():

@@ -126,10 +126,10 @@ The verbosity is controlled by the logging level.
     :skipif: True
 
     import logging
-    from pysatl import Utils
     from sha3bit import sha3_256
+    from sha3bit.utils import ba
     logging.basicConfig(format='%(message)s', level='INFO')
-    message = Utils.ba('E3 B0 C4 42 98 FC 1C 14 9A FB F4 C8 99 6F B9 24 27 AE 41 E4 64 9B 93 4C A4 95 99 1B 78 52 B8 55 5D F6 E0 E2 76 13 59 D3 0A 82 75 05 8E 29 9F CC 03 81 53 45 45 F5 5C F4 3E 41 98 3F 5D 4C 94 56 5F E4 46 3C')
+    message = ba('E3 B0 C4 42 98 FC 1C 14 9A FB F4 C8 99 6F B9 24 27 AE 41 E4 64 9B 93 4C A4 95 99 1B 78 52 B8 55 5D F6 E0 E2 76 13 59 D3 0A 82 75 05 8E 29 9F CC 03 81 53 45 45 F5 5C F4 3E 41 98 3F 5D 4C 94 56 5F E4 46 3C')
     h1 = sha3_256(message[0:64], verbose=True)
     state = h1.export_state()
     h2 = sha3_256.import_state(state)

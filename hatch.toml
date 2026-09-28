@@ -2,7 +2,6 @@
 dependencies = [
   "coverage[toml]",
   "pytest",
-  "pysatl"
 ]
 [envs.default.scripts]
 test = "pytest {args:test}"
@@ -17,24 +16,24 @@ cov = [
 ]
 
 [[envs.all.matrix]]
-python = ["3.11"]
+python = ["3.12"]
 
 [envs.lint]
 detached = true
 dependencies = [
   "black>=22.10.0",
   "mypy>=0.991",
-  "ruff>=0.0.166",
+  "ruff>=0.2.0",
 ]
 [envs.lint.scripts]
 typing = "mypy --install-types --non-interactive {args: sha3bit }"
 style = [
-  "ruff {args:.}",
+  "ruff check {args:.}",
   "black --check --diff {args:.}",
 ]
 fmt = [
   "black {args:.}",
-  "ruff --fix {args:.}",
+  "ruff check --fix {args:.}",
   "style",
 ]
 all = [

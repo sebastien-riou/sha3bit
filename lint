@@ -6,7 +6,7 @@ echo "Running 'black'"
 black .
 
 echo "Running 'ruff'"
-ruff --fix .
+ruff check --fix .
 
 echo "Running 'mypy'"
 mypy --install-types --non-interactive  sha3bit

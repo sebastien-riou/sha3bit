@@ -1,9 +1,8 @@
 import argparse
 import logging
 
-from pysatl import Utils
-
 import sha3bit
+from sha3bit.utils import ba, hexstr
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='sha3bit.cli')
@@ -23,7 +22,7 @@ if __name__ == '__main__':
 
     logging.basicConfig(format='%(message)s', level=args.log_level)
 
-    msg = Utils.ba(args.message[0])
+    msg = ba(args.message[0])
 
     cls = None
     xof = False
@@ -41,6 +40,8 @@ if __name__ == '__main__':
         cls = sha3bit.shake(128)
     if args.shake_256:
         cls = sha3bit.shake(256)
+    if cls is None:
+        parser.error('no algorithm selected')
 
     verbose = args.log_level in ['DEBUG', 'INFO']
     impl = cls(msg, bitlen=args.bit_length, verbose=verbose)
@@ -54,10 +55,8 @@ if __name__ == '__main__':
         digest = impl.digest(output_size)
     else:
         if output_size != impl.digest_size:
-            raise ValueError(
-                'digest-length is %d but SHA3-%d support only %d' % (output_size, impl.seclevel, impl.digest_size)
-            )
+            raise ValueError(f'digest-length is {output_size} but SHA3-{impl.seclevel} support only {impl.digest_size}')
         digest = impl.digest()
 
     if not verbose:
-        print(Utils.hexstr(digest))
+        print(hexstr(digest))
