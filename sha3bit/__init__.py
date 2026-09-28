@@ -76,14 +76,18 @@ class BitFiFo:
 
 
 class Keccak:
-    def __init__(self, capacity, suffix: str, *, verbose: bool = False):
+    def __init__(self, capacity, suffix: str, *, verbose: bool = False, nrounds: int = 24):
         """SHA3-Keccak implementation supporting bit granularity for message input length.
         This implement only the variant describe in SHA3 standard.
+        nrounds is the number of rounds of the permutation, see f1600.
         """
         if (capacity % 8) != 0:
             raise ValueError(f'capacity is not a multiple of 8: {capacity}')
         if capacity > 1600:
             raise ValueError('capacity > 1600')
+        if not 1 <= nrounds <= 24:
+            raise ValueError(f'nrounds={nrounds}, it must be in [1, 24]')
+        self.nrounds = nrounds
         self.suffix = suffix
         self.capacity = capacity
         self.rate = 1600 - self.capacity
@@ -100,6 +104,7 @@ class Keccak:
         suffix = state['suffix']
         finalized = state['finalized']
         verbose = state['verbose']
+        nrounds = state.get('nrounds', 24)  # states exported by older versions have no 'nrounds' entry
         if verbose:
             logging.info('importing state:')
             logging.info('  capacity = %d', state['capacity'])
@@ -109,11 +114,11 @@ class Keccak:
             else:
                 logging.info('  cache:  ' + hexstr(state['cache']))
                 logging.info('  bitlen = %d', state['bitlen'])
-        out = Keccak(capacity, suffix, verbose=verbose)
-        out.state = state['state']
+        out = Keccak(capacity, suffix, verbose=verbose, nrounds=nrounds)
+        out.state = [list(lane_column) for lane_column in state['state']]
         out.finalized = finalized
         if finalized:
-            out.buf = state['cache']
+            out.buf = bytearray(state['cache'])
         else:
             out.buf.push_bytes(state['cache'], state['bitlen'])
         return out
@@ -124,10 +129,11 @@ class Keccak:
         state['verbose'] = self._verbose
         state['capacity'] = self.capacity
         state['suffix'] = self.suffix
+        state['nrounds'] = self.nrounds
         state['finalized'] = self.finalized
-        state['state'] = self.state
+        state['state'] = [list(lane_column) for lane_column in self.state]
         if state['finalized']:
-            state['cache'] = self.buf
+            state['cache'] = bytes(self.buf)
         else:
             state['cache'] = self.buf.tobytes()
             state['bitlen'] = self.buf.level()
@@ -155,7 +161,7 @@ class Keccak:
             self.state[x][y] ^= lane
         if self._verbose:
             logging.info('process block:\n' + Keccak._state_str(input_lanes, limit=nlanes))
-        self.state = Keccak.f1600(self.state, verbose=self._verbose)
+        self.state = Keccak.f1600(self.state, verbose=self._verbose, nrounds=self.nrounds)
 
     def absorb(self, data, bitlen=None):
         """Update the sponge object with the bytes in data. Repeated calls
@@ -213,7 +219,7 @@ class Keccak:
         remaining = bytelen
         while remaining > 0:
             if 0 == len(self.buf):
-                self.state = Keccak.f1600(self.state, verbose=self._verbose)
+                self.state = Keccak.f1600(self.state, verbose=self._verbose, nrounds=self.nrounds)
                 self._format_output()
             size = min(remaining, len(self.buf))
             out += self.buf[0:size]
@@ -226,12 +232,20 @@ class Keccak:
         return ((a >> (64 - (n % 64))) + (a << (n % 64))) % (1 << 64)
 
     @staticmethod
-    def f1600(lanes, *, verbose: bool = False) -> list[list[int]]:
-        """SHA3 f function. lanes must be a list of 5 list of 5 int."""
+    def f1600(lanes, *, verbose: bool = False, nrounds: int = 24) -> list[list[int]]:
+        """SHA3 f function. lanes must be a list of 5 list of 5 int.
+        nrounds < 24 gives the reduced round permutation Keccak-p[1600, nrounds] defined in FIPS 202:
+        only the last nrounds rounds are applied (round indexes 24 - nrounds to 23).
+        """
+        if not 1 <= nrounds <= 24:
+            raise ValueError(f'nrounds={nrounds}, it must be in [1, 24]')
         if verbose:
             logging.info('f1600 input:\n' + Keccak._state_str(lanes))
+        first_round = 24 - nrounds
         r = 1
-        for _round in range(24):
+        for _ in range(7 * first_round):  # skip the round constants of the rounds not applied
+            r = ((r << 1) ^ ((r >> 7) * 0x71)) % 256
+        for _round in range(first_round, 24):
             # θ
             c = [lanes[x][0] ^ lanes[x][1] ^ lanes[x][2] ^ lanes[x][3] ^ lanes[x][4] for x in range(5)]
             d = [c[(x + 4) % 5] ^ Keccak._rol64(c[(x + 1) % 5], 1) for x in range(5)]
@@ -363,11 +377,177 @@ class shake_128:
         """Like squeez() except the bytes are returned as a string
         of double length, containing only hexadecimal digits.
         """
-        return binascii.hexlify(self.digest(length)).decode('ascii')
+        return binascii.hexlify(self.squeez(length)).decode('ascii')
 
 
 class shake_256(shake_128):
     seclevel = 256
+
+
+class turboshake_128(shake_128):
+    seclevel = 128
+
+    def __init__(self, m=None, *, bitlen=None, domain=0x1F, verbose=False):
+        """TurboSHAKE implementation (RFC 9861) supporting bit granularity for message input length.
+        domain is the domain separation byte D, it must be in [0x01, 0x7F].
+        A message which is not a whole number of bytes is followed by the bits of D, like in SHAKE.
+        API is the same as shake_128.
+        """
+        if not 0x01 <= domain <= 0x7F:
+            raise ValueError(f'domain=0x{domain:02X}, it must be in [0x01, 0x7F]')
+        capacity = self.seclevel * 2
+        self.digest_size = self.seclevel // 8
+        self.block_size = (1600 - capacity) // 8
+        # bits of D, LSB first, up to its last 1 which is also the first bit of the padding
+        suffix = bin(domain)[2:][::-1]
+        self._h = Keccak(capacity=capacity, suffix=suffix, verbose=verbose, nrounds=12)
+        self.update(m, bitlen=bitlen)
+
+
+class turboshake_256(turboshake_128):
+    seclevel = 256
+
+
+def _length_encode(x):
+    """length_encode() from RFC 9861: x as big endian bytes without leading zeros, then the number of those bytes"""
+    b = x.to_bytes((x.bit_length() + 7) // 8, byteorder='big')
+    return b + bytes([len(b)])
+
+
+class kangaroo12_128:
+    seclevel = 128
+    _turboshake = turboshake_128
+    _chunk_size = 8192
+    _cv_size = 32
+
+    def __init__(self, m=None, *, custom=b'', verbose=False):
+        """KangarooTwelve implementation (KT128 and KT256 in RFC 9861).
+        custom is the customization string C.
+        The input length has byte granularity: bitlen is not supported.
+        API is the same as shake_128 + custom.
+        """
+        self.digest_size = self.seclevel // 8
+        self.block_size = (1600 - self.seclevel * 2) // 8
+        self._custom = bytes(custom)
+        self._verbose = verbose
+        # S = M || C || length_encode(|C|) is cut in chunks. The first chunk is buffered until we know if
+        # S is longer than one chunk: if not, the output is TurboSHAKE(S) otherwise it is a tree hash.
+        self._s0 = bytearray()
+        self._final = None  # final node of the tree
+        self._leaf = None  # leaf being computed, for the chunks after the first one
+        self._leaf_len = 0
+        self._n_cv = 0  # number of chaining values absorbed by the final node
+        self._h = None  # sponge squeezed after finalization
+        self.update(m)
+
+    def export_state(self):
+        """Export current state to a dict"""
+        state = {}
+        state['custom'] = self._custom
+        state['verbose'] = self._verbose
+        state['s0'] = None if self._s0 is None else bytes(self._s0)
+        state['final'] = None if self._final is None else self._final.export_state()
+        state['leaf'] = None if self._leaf is None else self._leaf.export_state()
+        state['leaf_len'] = self._leaf_len
+        state['n_cv'] = self._n_cv
+        state['h'] = None if self._h is None else self._h.export_state()
+        return state
+
+    @classmethod
+    def import_state(cls, state):
+        """Initialize an instance from an exported state"""
+        o = cls(custom=state['custom'], verbose=state['verbose'])
+        o._s0 = None if state['s0'] is None else bytearray(state['s0'])
+        o._final = None if state['final'] is None else cls._turboshake.import_state(state['final'])
+        o._leaf = None if state['leaf'] is None else cls._turboshake.import_state(state['leaf'])
+        o._leaf_len = state['leaf_len']
+        o._n_cv = state['n_cv']
+        o._h = None if state['h'] is None else cls._turboshake.import_state(state['h'])
+        return o
+
+    def _new_node(self, m, domain):
+        return self._turboshake(m, domain=domain, verbose=self._verbose)
+
+    def _close_leaf(self):
+        self._final.update(self._leaf.squeez(self._cv_size))
+        self._n_cv += 1
+        self._leaf = None
+        self._leaf_len = 0
+
+    def _feed(self, data):
+        data = bytes(data)
+        if self._final is None:
+            room = self._chunk_size - len(self._s0)
+            self._s0 += data[:room]
+            data = data[room:]
+            if not data:
+                return
+            # S is longer than one chunk: start the tree
+            self._final = self._new_node(self._s0 + b'\x03' + bytes(7), domain=0x06)
+            self._s0 = None
+        while data:
+            if self._leaf is None:
+                self._leaf = self._new_node(None, domain=0x0B)
+            size = min(len(data), self._chunk_size - self._leaf_len)
+            self._leaf.update(data[:size])
+            self._leaf_len += size
+            data = data[size:]
+            if self._leaf_len == self._chunk_size:
+                self._close_leaf()
+
+    def _finalize(self):
+        self._feed(self._custom + _length_encode(len(self._custom)))
+        if self._final is None:
+            self._h = self._new_node(self._s0, domain=0x07)
+        else:
+            if self._leaf is not None:
+                self._close_leaf()
+            self._final.update(_length_encode(self._n_cv) + b'\xff\xff')
+            self._h = self._final
+        self._s0 = None
+        self._final = None
+
+    def update(self, m):
+        """Update the hash object with the bytes in m. Repeated calls
+        are equivalent to a single call with the concatenation of all
+        the arguments.
+        """
+        if self._h is not None:
+            raise Exception('Already finalized')
+        if m:
+            self._feed(m)
+
+    def digest(self, length):
+        """Return the digest of the bytes passed to the update() method
+        so far as a bytes object.
+        """
+        return bytes(copy.deepcopy(self).squeez(length))
+
+    def hexdigest(self, length):
+        """Like digest() except the digest is returned as a string
+        of double length, containing only hexadecimal digits.
+        """
+        return binascii.hexlify(self.digest(length)).decode('ascii')
+
+    def squeez(self, length):
+        """Squeez the sponge. Unlike digest(), consecutive calls do
+        not return same values.
+        """
+        if self._h is None:
+            self._finalize()
+        return self._h.squeez(length)
+
+    def hexsqueez(self, length):
+        """Like squeez() except the bytes are returned as a string
+        of double length, containing only hexadecimal digits.
+        """
+        return binascii.hexlify(self.squeez(length)).decode('ascii')
+
+
+class kangaroo12_256(kangaroo12_128):
+    seclevel = 256
+    _turboshake = turboshake_256
+    _cv_size = 64
 
 
 class sha3_224:

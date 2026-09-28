@@ -12,6 +12,7 @@ Pure python implementation of SHA3 with features which are often lacking:
 - Import/export API to "persist" the state in the middle of a hash computation
 - Real `squeez` function in addition of hashlib's `digest`
 - Builtin logging to see compression function IOs or even internal steps
+- TurboSHAKE and KangarooTwelve (KT128 and KT256 from RFC 9861), and the Keccak permutation with a reduced number of rounds
 
 [User documentation](https://sha3bit.rtfd.io) is hosted on readthedocs.
 
@@ -149,6 +150,16 @@ digest: 3A 98 5D A7 4F E2 25 B2 04 5C 17 2D 6B D3 90 BD 85 5F 08 6E 3E 9D 52 5B 
     >>> print(h2.hexdigest())
     '3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532'
 
+### TurboSHAKE and KangarooTwelve
+
+    >>> from sha3bit import kangaroo12_128, kangaroo12_256, turboshake_128
+    >>> turboshake_128(b'', domain=0x1F).hexdigest(32)
+    '1e415f1c5983aff2169217277d17bb538cd945a397ddec541f1ce41af2c1b74c'
+    >>> kangaroo12_128(b'', custom=b'').hexdigest(32)
+    '1ac2d450fc3b4205d19da7bfca1b37513c0803577ac7167f06fe2ce1f0ef39e5'
+    >>> kangaroo12_256(b'', custom=b'').hexdigest(64)
+    'b23d2e9cea9f4904e02bec06817fc10ce38ce8e93ef4c89e6537076af8646404e3e8b68107b8833a5d30490aa33482353fd4adc7148ecb782855003aaebde4a9'
+
 ## Test with `pytest`
 
     pytest-3
@@ -162,12 +173,17 @@ Tests can run without creating/installing the package:
 you can also run each test separately:
 
     python3 -m test.test_api
+    python3 -m test.test_api_xof
     python3 -m test.test_api_xof_absorb
     python3 -m test.test_cavp
     python3 -m test.test_cavp_xof
+    python3 -m test.test_f1600
     python3 -m test.test_hardcoded
+    python3 -m test.test_kangaroo12
+    python3 -m test.test_keccak_rounds
     python3 -m test.test_sha3_vs_hashlib
     python3 -m test.test_shake_vs_hashlib
+    python3 -m test.test_turboshake
 
 ## Generate the doc
 
