@@ -4,11 +4,16 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+bitarray = "*"
+
+[dev-packages]
+build = "*"
 black = "*"
 ruff = "*"
 mypy = "*"
-
-[dev-packages]
+sphinx = "*"
+sphinx-rtd-theme = "*"
+sphinx-autodoc-typehints = "*"
 
 [requires]
 python_version = "3.12"

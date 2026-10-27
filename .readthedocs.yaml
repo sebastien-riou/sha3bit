@@ -5,10 +5,16 @@
 # Required
 version: 2
 
+# Dependencies come from the root Pipfile.lock
 build:
   os: ubuntu-22.04
   tools:
     python: "3.12"
+  jobs:
+    post_create_environment:
+      - pip install pipenv
+    post_install:
+      - VIRTUAL_ENV=$READTHEDOCS_VIRTUALENV_PATH pipenv install --deploy --dev
 
 # Build documentation in the docs/ directory with Sphinx
 sphinx:
@@ -22,8 +28,3 @@ sphinx:
 formats:
     - htmlzip
     - pdf
-
-# Optionally set the version of Python and requirements required to build your docs
-python:
-  install:
-    - requirements: docs/requirements.txt

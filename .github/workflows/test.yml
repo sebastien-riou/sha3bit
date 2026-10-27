@@ -39,7 +39,6 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         python -m pip install hatch build
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
     - if: matrix.python-version == '3.12' && runner.os == 'Linux'
       name: Lint
@@ -52,6 +51,6 @@ jobs:
     - if: matrix.python-version == '3.12' && runner.os == 'Linux'
       name: Doc
       run: |
-        cd docs
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        make clean doctest html
+        python -m pip install pipenv
+        pipenv install --deploy --system --dev
+        make -C docs clean doctest html

@@ -28,6 +28,8 @@ classifiers = [
 dependencies = [
   "bitarray"
 ]
+[project.scripts]
+sha3bit = "sha3bit.cli:main"
 [project.urls]
 "Homepage" = "https://github.com/sebastien-riou/sha3bit"
 "Bug Tracker" = "https://github.com/sebastien-riou/sha3bit/issues"
